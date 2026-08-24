@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Tabela de teste para validar a conexão
+model Usuario {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Produto {
+  id              String   @id @default(uuid())
+  sku             String   @unique
+  nome            String
+  categoria       String
+  
+  // Informações Básicas
+  marca           String
+  origem          String   // <-- Campo adicionado aqui!
+  registroAnvisa  String?
+  fabricante      String
+  validade        String
+  peso            String
+  
+  // Detalhamento
+  descricao       String   @db.Text
+  dimensoes       String?
+  imagemUrl       String?
+  
+  // Dados Fiscais (Licitação/Governo)
+  ncm             String
+  cstOrigem       String
+  cstPis          String
+  cstCofins       String
+  ipi             String
+  icms            String
+  
+  // Controle de sistema
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
