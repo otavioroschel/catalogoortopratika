@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { FileText, Loader2, Trash2 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation"; // <-- Adicionamos o leitor de URL aqui
+import { useRouter, useSearchParams } from "next/navigation";
 import { obterProdutos, excluirProduto } from "@/actions/produto";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import { FichaTecnicaPDF } from "@/components/FichaTecnicaPDF";
 
-export default function DashboardPage() {
+// 1. ISOLAMOS O SEU CÓDIGO AQUI
+function DashboardConteudo() {
   const router = useRouter();
-  const searchParams = useSearchParams(); // <-- O gancho para ler a URL
-  
-  // Pegamos o que está escrito no ?q= da URL. Se não tiver nada, é texto vazio ("").
+  const searchParams = useSearchParams();
   const busca = searchParams.get("q") || "";
 
   const [produtos, setProdutos] = useState<any[]>([]);
@@ -44,7 +43,6 @@ export default function DashboardPage() {
     carregarDados();
   }, []);
 
-  // O filtro continua o mesmo, mas agora ele usa o "busca" que veio da URL!
   const produtosFiltrados = produtos.filter((produto) => {
     const termo = busca.toLowerCase();
     return (
@@ -132,5 +130,14 @@ export default function DashboardPage() {
         </>
       )}
     </div>
+  );
+}
+
+// 2. O COMPONENTE EXPORTADO PROTEGIDO PELO SUSPENSE
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20 text-gray-500">Carregando painel...</div>}>
+      <DashboardConteudo />
+    </Suspense>
   );
 }

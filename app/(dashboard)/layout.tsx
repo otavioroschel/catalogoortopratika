@@ -1,21 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Search, FileBox, Settings, LogOut, Plus, Menu, X } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+// 1. COMPONENTE SEPARADO SÓ PARA A BUSCA
+function BarraDeBusca() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const handleLogout = () => {
-    router.push("/login");
-  };
-
-  // FUNÇÃO NOVA: Grava o que foi digitado na URL
   const handleSearch = (term: string) => {
     const params = new URLSearchParams(searchParams);
     if (term) {
@@ -23,14 +17,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } else {
       params.delete('q');
     }
-    // Troca a URL sem recarregar a página
     router.replace(`${pathname}?${params.toString()}`);
+  };
+
+  return (
+    <input 
+      type="text" 
+      onChange={(e) => handleSearch(e.target.value)}
+      defaultValue={searchParams.get('q')?.toString() || ""}
+      placeholder="Buscar SKU ou Produto..." 
+      className="w-full pl-10 pr-3 py-2 bg-gray-100 border-transparent rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm md:text-base" 
+    />
+  );
+}
+
+// 2. O LAYOUT PRINCIPAL
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const handleLogout = () => {
+    router.push("/login");
   };
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden relative">
       
-      {/* OVERLAY MOBILE */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity"
@@ -38,7 +50,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
       )}
 
-      {/* MENU LATERAL */}
       <aside className={`absolute md:relative z-50 w-64 h-full bg-slate-900 text-slate-300 flex flex-col transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800 bg-slate-950">
           <div className="flex items-center">
@@ -73,10 +84,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* ÁREA PRINCIPAL */}
       <main className="flex-1 flex flex-col overflow-hidden w-full">
         
-        {/* CABEÇALHO */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center px-4 md:px-8 justify-between shadow-sm z-10">
           <div className="flex items-center flex-1 gap-3 md:gap-4">
             <button className="md:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg" onClick={() => setIsSidebarOpen(true)}>
@@ -85,14 +94,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex-1 max-w-2xl relative">
               <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               
-              {/* INPUT ATUALIZADO AQUI */}
-              <input 
-                type="text" 
-                onChange={(e) => handleSearch(e.target.value)}
-                defaultValue={searchParams.get('q')?.toString() || ""}
-                placeholder="Buscar SKU ou Produto..." 
-                className="w-full pl-10 pr-3 py-2 bg-gray-100 border-transparent rounded-lg focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm md:text-base" 
-              />
+              {/* COMPONENTE DA BUSCA PROTEGIDO PELO SUSPENSE AQUI */}
+              <Suspense fallback={<input type="text" placeholder="Carregando..." className="w-full pl-10 pr-3 py-2 bg-gray-100 border-transparent rounded-lg" />}>
+                <BarraDeBusca />
+              </Suspense>
               
             </div>
           </div>
@@ -105,7 +110,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        {/* CONTEÚDO DINÂMICO */}
         <div className="flex-1 overflow-auto p-4 md:p-8">
           {children}
         </div>
