@@ -18,31 +18,37 @@ function DashboardConteudo() {
   const [isClient, setIsClient] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState<string | null>(null);
 
+ // NOVA FUNÇÃO DE DOWNLOAD (À PROVA DE CELULAR)
   const baixarPDF = async (produto: any) => {
     try {
-      setGerandoPdf(produto.id); // Mostra o "Gerando..." no botão clicado
+      setGerandoPdf(produto.id); 
       
-      // Gera o documento nos bastidores
       const doc = <FichaTecnicaPDF produto={produto} />;
       const blob = await pdf(doc).toBlob();
       const nomeArquivo = `Ficha_${produto.sku}.pdf`;
-      const file = new File([blob], nomeArquivo, { type: "application/pdf" });
 
-      // Tenta usar o menu nativo do celular (WhatsApp, Salvar em Arquivos, etc)
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: nomeArquivo,
-          });
-        } catch (shareError: any) {
-          // Se o usuário fechar o menu nativo de propósito, não fazemos nada
-          if (shareError.name !== 'AbortError') {
-            console.error("Erro ao compartilhar", shareError);
-          }
-        }
+      // Verifica se o usuário está no celular (Android, iOS)
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        // TRUQUE PARA CELULAR: Converte o Blob para Base64 e força o download como arquivo genérico
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          
+          // Troca o tipo do arquivo para enganar o navegador e forçar o download
+          const base64Forcado = base64data.replace("application/pdf", "application/octet-stream");
+          
+          const link = document.createElement("a");
+          link.href = base64Forcado;
+          link.download = nomeArquivo;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
       } else {
-        // Se estiver no PC (onde não tem menu nativo), força o download direto
+        // No Computador, o comportamento normal já funciona perfeito
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
@@ -56,7 +62,7 @@ function DashboardConteudo() {
       console.error("Erro ao gerar PDF:", error);
       alert("Erro ao gerar o documento.");
     } finally {
-      setGerandoPdf(null); // Tira o loading do botão
+      setGerandoPdf(null); 
     }
   };
 
