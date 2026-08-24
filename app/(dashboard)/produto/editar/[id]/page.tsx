@@ -106,7 +106,7 @@ export default function EditarProduto() {
           setIsSubmittingForm(false);
           return;
         }
-        imagemUrlFinal = uploadResult.url;
+        imagemUrlFinal = uploadResult.url || null;
       }
 
       const dadosParaSalvar = {
