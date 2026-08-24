@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { FileText, Loader2, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { obterProdutos, excluirProduto } from "@/actions/produto";
-import { PDFDownloadLink } from "@react-pdf/renderer";
+import { pdf } from "@react-pdf/renderer";
 import { FichaTecnicaPDF } from "@/components/FichaTecnicaPDF";
 
 // 1. ISOLAMOS O SEU CÓDIGO AQUI
@@ -16,6 +16,49 @@ function DashboardConteudo() {
   const [produtos, setProdutos] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  const [gerandoPdf, setGerandoPdf] = useState<string | null>(null);
+
+  const baixarPDF = async (produto: any) => {
+    try {
+      setGerandoPdf(produto.id); // Mostra o "Gerando..." no botão clicado
+      
+      // Gera o documento nos bastidores
+      const doc = <FichaTecnicaPDF produto={produto} />;
+      const blob = await pdf(doc).toBlob();
+      const nomeArquivo = `Ficha_${produto.sku}.pdf`;
+      const file = new File([blob], nomeArquivo, { type: "application/pdf" });
+
+      // Tenta usar o menu nativo do celular (WhatsApp, Salvar em Arquivos, etc)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: nomeArquivo,
+          });
+        } catch (shareError: any) {
+          // Se o usuário fechar o menu nativo de propósito, não fazemos nada
+          if (shareError.name !== 'AbortError') {
+            console.error("Erro ao compartilhar", shareError);
+          }
+        }
+      } else {
+        // Se estiver no PC (onde não tem menu nativo), força o download direto
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = nomeArquivo;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      alert("Erro ao gerar o documento.");
+    } finally {
+      setGerandoPdf(null); // Tira o loading do botão
+    }
+  };
 
   useEffect(() => {
     setIsClient(true);
@@ -103,26 +146,23 @@ function DashboardConteudo() {
                   >
                     Editar
                   </button>
-                  
-                  {isClient ? (
-                    <PDFDownloadLink
-                      document={<FichaTecnicaPDF produto={produto} />}
-                      fileName={`Ficha_Tecnica_${produto.sku}.pdf`}
-                      className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1 transition-colors"
-                    >
-                      {({ loading }) => (
-                        <>
-                          <FileText className="w-4 h-4" />
-                          {loading ? "Gerando..." : "PDF"}
-                        </>
-                      )}
-                    </PDFDownloadLink>
-                  ) : (
-                    <button className="flex-1 bg-blue-50 text-blue-700 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1 opacity-50 cursor-not-allowed">
-                      <FileText className="w-4 h-4" />
-                      PDF
-                    </button>
-                  )}
+                 <button 
+  onClick={() => baixarPDF(produto)}
+  disabled={gerandoPdf === produto.id}
+  className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  {gerandoPdf === produto.id ? (
+    <>
+      <Loader2 className="w-4 h-4 animate-spin" />
+      Gerando...
+    </>
+  ) : (
+    <>
+      <FileText className="w-4 h-4" />
+      PDF
+    </>
+  )}
+</button>
                 </div>
               </div>
             ))}
