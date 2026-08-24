@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { Search, FileBox, Settings, LogOut, Plus, Menu, X } from "lucide-react";
+import { useState, useEffect, Suspense } from "react";
+import { Search, FileBox, Settings, LogOut, Plus, Menu, X, Loader2 } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase"; // <-- Importando o Supabase para a catraca
 
-// 1. COMPONENTE SEPARADO SÓ PARA A BUSCA
+// 1. COMPONENTE DA BUSCA
 function BarraDeBusca() {
   const router = useRouter();
   const pathname = usePathname();
@@ -31,14 +32,51 @@ function BarraDeBusca() {
   );
 }
 
-// 2. O LAYOUT PRINCIPAL
+// 2. O LAYOUT PRINCIPAL BLINDADO
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // Estado para não dar "flash" na tela enquanto checa o login
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  const handleLogout = () => {
-    router.push("/login");
+  // A CATRACA DE SEGURANÇA
+  useEffect(() => {
+    const verificarAcesso = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        // Se não tem sessão, chuta pro login imediatamente
+        router.replace("/login");
+      } else {
+        // Se tem sessão, libera a tela
+        setIsCheckingAuth(false);
+      }
+    };
+
+    verificarAcesso();
+  }, [router]);
+
+  // Logout de verdade
+ // Logout de verdade, matando o cache e o histórico
+  const handleLogout = async () => {
+    // 1. Derruba a sessão no servidor do Supabase
+    await supabase.auth.signOut();
+    
+    // 2. Força um reload completo da tela substituindo o histórico. 
+    // Assim o botão "voltar" do navegador não consegue acessar o dashboard cacheado.
+    window.location.replace("/login");
   };
+
+  // Tela de carregamento enquanto o Supabase verifica a segurança
+  if (isCheckingAuth) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-500">
+        <Loader2 className="w-8 h-8 animate-spin mr-3" />
+        <span>Verificando acesso...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden relative">
@@ -94,7 +132,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex-1 max-w-2xl relative">
               <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               
-              {/* COMPONENTE DA BUSCA PROTEGIDO PELO SUSPENSE AQUI */}
               <Suspense fallback={<input type="text" placeholder="Carregando..." className="w-full pl-10 pr-3 py-2 bg-gray-100 border-transparent rounded-lg" />}>
                 <BarraDeBusca />
               </Suspense>
